@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset='utf-8'>
+    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+    <title>SVG Recorder</title>
+    <meta name="description" content="Record an animated SVG and export it as WebM video">
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <link rel='stylesheet' as='style' type='text/css' href='main.css'>
+</head>
+<body>
+    <h1>SVG Recorder</h1>
+    <form>
+        <label for="svg"><input id="svg" name="svg" type="file" accept="image/svg+xml" required/><img alt="Uploaded image"/></label>
+        <label for="width">Width (px)<input id="width" name="width" type="number" min="1"/></label>
+        <label for="height">Height (px)<input id="height" name="height" type="number" min="1"/></label>
+        <label for="duration">Duration (ms)<input id="duration" name="duration" type="number" placeholder="5000" min="1"/></label>
+        <label for="framerate">Framerate<input id="framerate" name="framerate" type="number" placeholder="30" min="1"/></label>
+        <label for="background">Background color<input id="background" name="background" type="color" value="#FFFFFF" required/></label>
+        <button>Record</button>
+    </form>
+    <script src='main.js' defer></script>
+</body>
+</html>
