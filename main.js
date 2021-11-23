@@ -57,6 +57,27 @@ form.onsubmit = function (event) {
     return;
 }
 
+form.width.onchange = form.height.onchange = function(e) {
+    const current = e.currentTarget;
+    if (form["link-dimensions"].checked) {
+        const other = current==form.width ? form.height : form.width;
+        const ratio = parseInt(current.value) / parseInt(current.previousValue || current.placeholder);
+        other.value = Math.round(parseInt(other.value || other.placeholder) * ratio);
+    }
+    storeValue(current);
+}
+
+form.width.onfocus = form.height.onfocus = function(e) {
+    storeValue(e.currentTarget);
+}
+
+/**
+ * @param {HTMLInputElement} input
+ */
+function storeValue(input) {
+    input.previousValue = input.value;
+}
+
 /**
  * Validate the form
  * @returns Validation errors
@@ -145,7 +166,7 @@ function startRecord(options) {
         body.appendChild(canvas);
 
         recorder.ondataavailable = function(event) {
-            const blob = event.data;console.log("ondataavailable", blob);
+            const blob = event.data;
             if (blob && blob.size) { 
                 chunks.push(blob); 
             }
@@ -195,7 +216,6 @@ function startRecord(options) {
         function render() {
             ctx.rect(0, 0, options.width, options.height);
             ctx.fill();
-            console.log("Draw SVG", image);
             ctx.drawImage(image, 0, 0, options.width, options.height);
         }
     });
