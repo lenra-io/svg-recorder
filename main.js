@@ -3,14 +3,50 @@
 const body = document.body,
     form = document.querySelector('form'),
     svgLabel = form.svg.parentNode,
-    previewer = svgLabel.querySelector('img');
+    previewer = svgLabel.querySelector('img'),
+    format = form.format;
 
 let initTime;
-    
+
+function getSupportedFormatString(container, codecs) {
+    for (const codec of codecs) {
+        if (MediaRecorder.isTypeSupported(`video/${container};codecs=${codec}`)) {
+            return `video/${container};codecs=${codec}`;
+        }
+        if (MediaRecorder.isTypeSupported(`video/${container};codecs=${codec.toUpperCase()}`)) {
+            return `video/${container};codecs=${codec.toUpperCase()}`;
+        }
+    }
+    return null;
+}
+
 form.svg.onchange = function(event) {
     const [file] = form.svg.files;
     previewer.src = URL.createObjectURL(file);
     svgLabel.className = 'choosen';
+
+    // Populate formats dropdown
+    const allContainers = {'Matroska': 'x-matroska', 'WebM': 'webm', 'Ogg': 'ogg', 'MPEG-4': 'mp4', 'MPEG-2': 'mpeg', 'QuickTime': 'quicktime'};
+    const allCodecs = {'AV1': ['av1'], 'VP9': ['vp9', 'vp9.0'], 'VP8': ['vp8', 'vp8.0'], 'H.265': ['hevc', 'h265', 'h.265'], 'H.264': ['avc1', 'h264', 'h.264'], 'Theora': ['theora', 'ogg', 'theo']};
+
+    let formatString;
+    let isFirstOption = true;
+    for (const codec in allCodecs) {
+        for (const container in allContainers) {
+            formatString = getSupportedFormatString(allContainers[container], allCodecs[codec]);
+            if (formatString !== null) {
+                const option = document.createElement('option');
+                option.value = formatString;
+                option.textContent = `${container} + ${codec}`;
+                if (isFirstOption) {
+                    option.selected = true;
+                    isFirstOption = false;
+                }
+                format.appendChild(option);
+            }
+        }
+    }
+
     // TODO: read the canvas sources
     // TODO: get the canvas width and height to set the attributes in the in the SVG node (see https://stackoverflow.com/a/28692538)
     // TODO: get the animation duration
@@ -38,7 +74,8 @@ form.onsubmit = function (event) {
             height: parseInt(form.height.value || form.height.placeholder),
             duration: parseInt(form.duration.value || form.duration.placeholder),
             framerate: parseInt(form.framerate.value || form.framerate.placeholder),
-            background: form.background.value
+            background: form.background.value,
+            format: form.format.value
         }).then(function(blob) {
             const generatedFile = new File([new Blob([blob], {type: 'application/octet-stream'})], file.name.replace(/\.svgz?$/i, '.webm'));
             const a = document.createElement('a');
@@ -144,9 +181,9 @@ function checkPositifInt(val) {
 function startRecord(options) {
     return new Promise(function(resolve, reject) {
         console.log('startRecord', options);
-        if (body.className) 
+        if (body.className)
             return reject(new Error("It's already recording"));
-        
+
         body.className = 'recording';
         // create image, canvas and recorder
         const image = document.createElement('img'),
@@ -154,7 +191,7 @@ function startRecord(options) {
             ctx = canvas.getContext('2d'),
             chunks = [],
             stream = canvas.captureStream(options.framerate),
-            recorder = new MediaRecorder(stream, { mimeType: "video/webm" });
+            recorder = new MediaRecorder(stream, { mimeType: options.format });
 
         initTime = null;
 
@@ -167,8 +204,8 @@ function startRecord(options) {
 
         recorder.ondataavailable = function(event) {
             const blob = event.data;
-            if (blob && blob.size) { 
-                chunks.push(blob); 
+            if (blob && blob.size) {
+                chunks.push(blob);
             }
         };
 
@@ -200,7 +237,7 @@ function startRecord(options) {
                 if (!time)
                     recorder.start();
                 else
-                    initTime = time; 
+                    initTime = time;
             }
             else if (time - initTime > options.duration) {
                 // stop recording after defined duration
