@@ -2,9 +2,9 @@
 
 const body = document.body,
     form = document.querySelector('form'),
-    svgLabel = form.svg.parentNode,
-    previewer = svgLabel.querySelector('img'),
-    format = form.format;
+    svgLabel = form.querySelector('label[for="svg"]'),
+    format = form.format,
+    optionsPage = document.getElementById('optionsPage');
 
 let initTime;
 
@@ -22,8 +22,17 @@ function getSupportedFormatString(container, codecs) {
 
 form.svg.onchange = function(event) {
     const [file] = form.svg.files;
+    let previewer = document.createElement('img');
+    previewer.onload = function() {
+        form.width.placeholder = previewer.naturalWidth;
+        form.height.placeholder = previewer.naturalHeight;
+    }
     previewer.src = URL.createObjectURL(file);
+    svgLabel.innerHTML = '';
+    svgLabel.appendChild(previewer);
     svgLabel.className = 'choosen';
+    optionsPage.className = 'visible';
+    optionsPage.style.height = optionsPage.scrollHeight + 'px';
 
     // Populate formats dropdown
     const allContainers = {'Matroska': 'x-matroska', 'WebM': 'webm', 'Ogg': 'ogg', 'MPEG-4': 'mp4', 'MPEG-2': 'mpeg', 'QuickTime': 'quicktime'};
@@ -50,11 +59,6 @@ form.svg.onchange = function(event) {
     // TODO: read the canvas sources
     // TODO: get the canvas width and height to set the attributes in the in the SVG node (see https://stackoverflow.com/a/28692538)
     // TODO: get the animation duration
-}
-
-previewer.onload = function() {
-    form.width.placeholder = previewer.naturalWidth;
-    form.height.placeholder = previewer.naturalHeight;
 }
 
 form.onsubmit = function (event) {
