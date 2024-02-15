@@ -6,7 +6,7 @@ const body = document.body,
     format = form.format,
     optionsPage = document.getElementById('optionsPage');
 
-let initTime;
+let initTime, lastFrameNum;
 
 function getSupportedFormatString(container, codecs) {
     for (const codec of codecs) {
@@ -38,22 +38,36 @@ form.svg.onchange = function(event) {
     const allContainers = {'Matroska': 'x-matroska', 'WebM': 'webm', 'Ogg': 'ogg', 'MPEG-4': 'mp4', 'MPEG-2': 'mpeg', 'QuickTime': 'quicktime'};
     const allCodecs = {'AV1': ['av1'], 'VP9': ['vp9', 'vp9.0'], 'VP8': ['vp8', 'vp8.0'], 'H.265': ['hevc', 'h265', 'h.265'], 'H.264': ['avc1', 'h264', 'h.264'], 'Theora': ['theora', 'ogg', 'theo']};
 
-    let formatString;
-    let isFirstOption = true;
-    for (const codec in allCodecs) {
-        for (const container in allContainers) {
-            formatString = getSupportedFormatString(allContainers[container], allCodecs[codec]);
-            if (formatString !== null) {
-                const option = document.createElement('option');
-                option.value = formatString;
-                option.textContent = `${container} + ${codec}`;
-                if (isFirstOption) {
-                    option.selected = true;
-                    isFirstOption = false;
+    const testCanvas = document.createElement('canvas');
+    let hasOption = false;
+    // Add video export formats
+    if (typeof(testCanvas.captureStream) === "function") {
+        let formatString;
+        for (const codec in allCodecs) {
+            for (const container in allContainers) {
+                formatString = getSupportedFormatString(allContainers[container], allCodecs[codec]);
+                if (formatString !== null) {
+                    hasOption = true;
+                    const option = document.createElement('option');
+                    option.value = formatString;
+                    option.textContent = `${container} + ${codec}`;
+                    format.appendChild(option);
                 }
-                format.appendChild(option);
             }
         }
+    }
+    // Add image sequence format
+    if (typeof(testCanvas.toBlob) === "function") {
+        hasOption = true;
+        const option = document.createElement('option');
+        option.value = 'image/png';
+        option.textContent = 'PNG Sequence';
+        format.appendChild(option);
+    }
+
+    if (!hasOption) {
+        format.disabled = true;
+        alert('Your browser does not support any of the required features to record canvas data. Please use a different or more up-to-date browser.');
     }
 
     // TODO: read the canvas sources
@@ -81,14 +95,42 @@ form.onsubmit = function (event) {
             background: form.background.value,
             format: form.format.value
         }).then(function(blob) {
-            const generatedFile = new File([new Blob([blob], {type: 'application/octet-stream'})], file.name.replace(/\.svgz?$/i, '.webm'));
-            const a = document.createElement('a');
-            a.download = generatedFile.name;
-            a.href = URL.createObjectURL(generatedFile);
-            a.dataset.downloadurl = [generatedFile.type, a.download, a.href].join(':');
-            const mouseEvent = document.createEvent('MouseEvents');
-            mouseEvent.initMouseEvent('click', true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-            a.dispatchEvent(mouseEvent);
+            if (form.format.value.startsWith('video/')) {
+                const containerExtensions = {'x-matroska': 'mkv', 'webm': 'webm', 'ogg': 'ogv', 'mp4': 'mp4', 'mpeg': 'mpg', 'quicktime': 'mov'};
+                saveAs(blob, file.name.replace(/\.svgz?$/i, '.' + containerExtensions[form.format.value.split(';')[0].split('/')[1]]));
+            }
+            else if (form.format.value.startsWith('image/')) {
+                const blobs = blob;
+                // Create a new instance of JSZip
+                const zip = new JSZip();
+
+                let droppedFrames = 0;
+                let lastFrame = null;
+
+                // Iterate over the array of PNG blobs
+                for (let i = 0; i < blobs.length; i++) {
+                    // Create a new file name for each PNG image
+                    const fileName = `${i}.png`;
+
+                    if (typeof(blobs[i]) !== 'undefined') {
+                        // Add the PNG blob to the zip file
+                        lastFrame = blobs[i];
+                        zip.file(fileName, lastFrame);
+                    }
+                    else {
+                        zip.file(fileName, lastFrame);
+                        droppedFrames++;
+                    }
+                }
+
+                console.log("Dropped frames:", droppedFrames);
+
+                // Generate the zip file asynchronously
+                zip.generateAsync({ type: "blob" }).then(function (content) {
+                    // Save the zip file using saveMe
+                    saveAs(content, file.name.replace(/\.svgz?$/i, '.zip'));
+                });
+            }
         });
     }
 
@@ -192,12 +234,11 @@ function startRecord(options) {
         // create image, canvas and recorder
         const image = document.createElement('img'),
             canvas = document.createElement('canvas'),
-            ctx = canvas.getContext('2d'),
-            chunks = [],
-            stream = canvas.captureStream(options.framerate),
-            recorder = new MediaRecorder(stream, { mimeType: options.format });
+            ctx = canvas.getContext('2d');
+        let frames, chunks, stream, recorder = null;
 
         initTime = null;
+        lastFrameNum = -1;
 
         canvas.width = image.width = options.width;
         canvas.height = image.height = options.height;
@@ -206,22 +247,31 @@ function startRecord(options) {
         body.appendChild(image);
         body.appendChild(canvas);
 
-        recorder.ondataavailable = function(event) {
-            const blob = event.data;
-            if (blob && blob.size) {
-                chunks.push(blob);
-            }
-        };
+        if (options.format.startsWith('video/')) {
+            chunks = [];
+            stream = canvas.captureStream(options.framerate);
+            recorder = new MediaRecorder(stream, { mimeType: options.format });
 
-        recorder.onstop = function(event) {
-            // remove temp components
-            body.removeChild(image);
-            body.removeChild(canvas);
+            recorder.ondataavailable = function(event) {
+                const blob = event.data;
+                if (blob && blob.size) {
+                    chunks.push(blob);
+                }
+            };
 
-            body.className = '';
+            recorder.onstop = function(event) {
+                // remove temp components
+                body.removeChild(image);
+                body.removeChild(canvas);
 
-            resolve(new Blob(chunks, { type: "video/webm" }));
-        };
+                body.className = '';
+
+                resolve(new Blob(chunks, { type: options.format }));
+            };
+        }
+        else if (options.format === 'image/png') {
+            frames = [];
+        }
 
         // on image loaded start recording
         image.onload = function(event) {
@@ -235,19 +285,39 @@ function startRecord(options) {
          * @param {number} time The loop time
          */
         function renderLoop(time) {
-            render();
-            if (initTime==null) {
+            if (initTime == null) {
                 // First call
-                if (!time)
+                if (!time && recorder !== null) {
                     recorder.start();
-                else
+                }
+                else {
                     initTime = time;
+                }
             }
             else if (time - initTime > options.duration) {
                 // stop recording after defined duration
-                recorder.stop();
+                if (recorder !== null) {
+                    recorder.stop();
+                }
+                else {
+                    resolve(frames);
+                }
                 return;
             }
+
+            const currentFrameNum = Math.floor((time - initTime) / 1000 * options.framerate);
+            if (currentFrameNum > lastFrameNum) {
+                render();
+                if (recorder === null) {
+                    canvas.toBlob(function(blob) {
+                        if (blob && blob.size) {
+                            frames[currentFrameNum] = blob;
+                        }
+                    }, options.format);
+                }
+                lastFrameNum = currentFrameNum;
+            }
+
             requestAnimationFrame(renderLoop);
         }
 
