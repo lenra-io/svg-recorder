@@ -1,7 +1,7 @@
 *, *::before, *::after {
     margin: 0;
     padding: 0;
-    /*box-sizing: border-box;*/
+    box-sizing: border-box;
     color: inherit;
     text-decoration: none;
     list-style: none;
@@ -54,16 +54,6 @@ form {
     overflow: auto;
     display: inline-block;
     transition-property: margin;
-    /*position: relative;
-    width: 90%;
-    max-width: 300pt;
-    max-height: calc(100% - var(--title-size));
-    top: calc((100% - var(--title-size)) / 2);
-    margin: auto;
-    padding: calc(var(--seprataion-size) * var(--base)) 0;
-    overflow: hidden;
-    transform: translateY(-50%);
-    transition-property: max-height, padding, top, transform, margin-bottom;*/
 }
 
 form:has(label[for=svg].choosen) {
@@ -131,9 +121,6 @@ label[for=svg] {
     margin: 0;
     max-height: 100%;
     max-width: 100%;
-    /*position: relative;
-    margin: calc((100vh - var(--title-size) - var(--seprataion-size) * var(--base) - var(--svg-label-height)) / 2) 0;
-    transition-property: margin, height;*/
 }
 
 #svg {
