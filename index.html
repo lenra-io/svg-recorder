@@ -11,15 +11,23 @@
 <body>
     <h1>SVG Recorder</h1>
     <form>
-        <label for="svg"><input id="svg" name="svg" type="file" accept="image/svg+xml" required/><img alt="Uploaded image"/></label>
-        <label for="width">Width (px)<input id="width" name="width" type="number" min="1"/></label>
-        <label for="height">Height (px)<input id="height" name="height" type="number" min="1"/></label>
-        <input type="checkbox" id="link-dimensions" checked/><label for="link-dimensions">Link dimensions</label>
-        <label for="duration">Duration (ms)<input id="duration" name="duration" type="number" placeholder="5000" min="1"/></label>
-        <label for="framerate">Framerate<input id="framerate" name="framerate" type="number" placeholder="30" min="1"/></label>
-        <label for="background">Background color<input id="background" name="background" type="color" value="#FFFFFF" required/></label>
-        <button>Record</button>
+        <div id="svgPage" class="page">
+            <label for="svg">Choose an SVG file</label>
+            <input id="svg" name="svg" type="file" accept="image/svg+xml" required/>
+        </div>
+        <div id="optionsPage" class="page">
+            <label for="width">Width (px)<input id="width" name="width" type="number" min="1"/></label>
+            <label for="height">Height (px)<input id="height" name="height" type="number" min="1"/></label>
+            <input type="checkbox" id="link-dimensions" checked/><label for="link-dimensions">Link dimensions</label>
+            <label for="duration">Duration (ms)<input id="duration" name="duration" type="number" placeholder="5000" min="1"/></label>
+            <label for="framerate">Framerate<input id="framerate" name="framerate" type="number" placeholder="30" min="1"/></label>
+            <label for="background">Background color<input id="background" name="background" type="color" value="#FFFFFF" required/></label>
+            <label for="format">Output format:<select id="format" name="format" required></select></label>
+            <button>Record</button>
+        </div>
     </form>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" integrity="sha512-Qlv6VSKh1gDKGoJbnyA5RMXYcvnpIqhO++MhIM2fStMcGT9i2T//tSwYFlcyoRRDcDZ+TYHpH8azBBCyhpSeqw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src='main.js' defer></script>
 </body>
 </html>
