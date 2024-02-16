@@ -6,7 +6,7 @@ const body = document.body,
     format = form.format,
     optionsPage = document.getElementById('optionsPage');
 
-let initTime, lastFrameNum;
+let image, canvas, initTime, lastFrameNum;
 
 function getSupportedFormatString(container, codecs) {
     for (const codec of codecs) {
@@ -63,6 +63,18 @@ form.svg.onchange = function(event) {
         option.value = 'image/png';
         option.textContent = 'PNG Sequence';
         format.appendChild(option);
+
+        const extraFormats = {'image/jpeg': 'JPEG Sequence', 'image/webp': 'WebP Sequence'};
+        for (const mimeType in extraFormats) {
+            testCanvas.toBlob(function(blob) {
+                if (blob.type === mimeType) {
+                    const option = document.createElement('option');
+                    option.value = mimeType;
+                    option.textContent = extraFormats[mimeType];
+                    format.appendChild(option);
+                }
+            }, mimeType);
+        }
     }
 
     if (!hasOption) {
@@ -100,7 +112,7 @@ form.onsubmit = function (event) {
                 saveAs(blob, file.name.replace(/\.svgz?$/i, '.' + containerExtensions[form.format.value.split(';')[0].split('/')[1]]));
             }
             else if (form.format.value.startsWith('image/')) {
-                const blobs = blob;
+                const imageExtensions = {'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp'};
                 // Create a new instance of JSZip
                 const zip = new JSZip();
 
@@ -108,13 +120,13 @@ form.onsubmit = function (event) {
                 let lastFrame = null;
 
                 // Iterate over the array of PNG blobs
-                for (let i = 0; i < blobs.length; i++) {
+                for (let i = 0; i < blob.length; i++) {
                     // Create a new file name for each PNG image
-                    const fileName = `${i}.png`;
+                    const fileName = `${i}.${imageExtensions[form.format.value]}`;
 
-                    if (typeof(blobs[i]) !== 'undefined') {
+                    if (typeof(blob[i]) !== 'undefined') {
                         // Add the PNG blob to the zip file
-                        lastFrame = blobs[i];
+                        lastFrame = blob[i];
                         zip.file(fileName, lastFrame);
                     }
                     else {
@@ -131,6 +143,12 @@ form.onsubmit = function (event) {
                     saveAs(content, file.name.replace(/\.svgz?$/i, '.zip'));
                 });
             }
+        }).finally(function() {
+            // remove temp components
+            body.removeChild(image);
+            body.removeChild(canvas);
+
+            body.className = '';
         });
     }
 
@@ -232,10 +250,10 @@ function startRecord(options) {
 
         body.className = 'recording';
         // create image, canvas and recorder
-        const image = document.createElement('img'),
-            canvas = document.createElement('canvas'),
-            ctx = canvas.getContext('2d');
-        let frames, chunks, stream, recorder = null;
+        image = document.createElement('img');
+        canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        let frames, framePromises, chunks, stream, recorder = null;
 
         initTime = null;
         lastFrameNum = -1;
@@ -260,17 +278,12 @@ function startRecord(options) {
             };
 
             recorder.onstop = function(event) {
-                // remove temp components
-                body.removeChild(image);
-                body.removeChild(canvas);
-
-                body.className = '';
-
                 resolve(new Blob(chunks, { type: options.format }));
             };
         }
-        else if (options.format === 'image/png') {
+        else if (options.format.startsWith('image/')) {
             frames = [];
+            framePromises = [];
         }
 
         // on image loaded start recording
@@ -300,7 +313,9 @@ function startRecord(options) {
                     recorder.stop();
                 }
                 else {
-                    resolve(frames);
+                    Promise.all(framePromises).finally(function() {
+                        resolve(frames);
+                    });
                 }
                 return;
             }
@@ -309,11 +324,17 @@ function startRecord(options) {
             if (currentFrameNum > lastFrameNum) {
                 render();
                 if (recorder === null) {
-                    canvas.toBlob(function(blob) {
-                        if (blob && blob.size) {
-                            frames[currentFrameNum] = blob;
-                        }
-                    }, options.format);
+                    framePromises.push(new Promise(function(resolve, reject) {
+                        canvas.toBlob(function(blob) {
+                            if (blob && blob.size) {
+                                frames[currentFrameNum] = blob;
+                                resolve();
+                            }
+                            else {
+                                reject(new Error('Empty blob'));
+                            }
+                        }, options.format);
+                    }));
                 }
                 lastFrameNum = currentFrameNum;
             }
